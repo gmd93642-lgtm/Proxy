@@ -16,12 +16,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20   # 🔥 FIXED
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build Vite app
+      - name: Build web app
         run: npm run build
 
       - name: Setup Java
@@ -30,15 +30,13 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: Install Capacitor
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap sync android
+      - name: Sync Capacitor
+        run: npx cap sync android
 
       - name: Build APK
         run: |
           cd android
-          chmod +x ./gradlew
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
