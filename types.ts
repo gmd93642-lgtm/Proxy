@@ -19,7 +19,7 @@ export interface AudioVisuals {
 }
 
 export interface PermissionRequest {
-  type: 'audio' | 'video';
+  type: 'audio' | 'video' | 'overlay';
   onConfirm: () => void;
   onCancel: () => void;
 }
