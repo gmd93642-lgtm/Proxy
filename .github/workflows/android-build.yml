@@ -1,37 +1,46 @@
-name: Android APK Build
+name: Android APK Build (No PC)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20   # 🔥 FIXED
+          node-version: 20
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build web app
+      - name: Build Vite app
         run: npm run build
+
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
+
+      - name: Initialize Capacitor
+        run: |
+          npx cap init "Roxy OS" "com.roxy.os" --web-dir=dist
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: 17
-
-      - name: Sync Capacitor
-        run: npx cap sync android
 
       - name: Build APK
         run: |
@@ -42,5 +51,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: roxy-os-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
