@@ -1,0 +1,23 @@
+{
+  "name": "ROXY OS",
+  "short_name": "ROXY",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#030014",
+  "theme_color": "#030014",
+  "description": "Next-generation personal AI assistant interface.",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/000000/22d3ee.png?text=ROXY",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://placehold.co/512x512/000000/22d3ee.png?text=ROXY",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["productivity", "utilities", "artificial-intelligence"]
+}

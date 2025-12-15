@@ -1,0 +1,8 @@
+{
+  "name": "ROXY - System Intelligence",
+  "description": "Next-generation personal AI assistant interface. Vision-enabled, voice-first, dark-mode.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
