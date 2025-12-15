@@ -125,30 +125,76 @@ export const useLiveRoxy = () => {
     setError(null);
   }, []);
 
-  // Permission Checker
-  const checkPermission = async (type: 'audio' | 'video'): Promise<boolean> => {
-    try {
-        const name = type === 'audio' ? 'microphone' : 'camera';
-        // @ts-ignore
-        const result = await navigator.permissions.query({ name });
-        if (result.state === 'granted') return true;
-    } catch (e) {
-        // Fallback
-    }
+  // Permission Request Helper
+  const requestPermissionUI = (type: 'audio' | 'video' | 'overlay'): Promise<boolean> => {
+      return new Promise((resolve) => {
+          setPermissionRequest({
+              type,
+              onConfirm: () => {
+                  setPermissionRequest(null);
+                  resolve(true);
+              },
+              onCancel: () => {
+                  setPermissionRequest(null);
+                  resolve(false);
+              }
+          });
+      });
+  };
 
-    return new Promise((resolve) => {
-        setPermissionRequest({
-            type,
-            onConfirm: () => {
-                setPermissionRequest(null);
-                resolve(true);
-            },
-            onCancel: () => {
-                setPermissionRequest(null);
-                resolve(false);
-            }
-        });
-    });
+  const checkAndRequestPermissions = async (): Promise<boolean> => {
+      // 1. Microphone (Essential)
+      try {
+          // Attempt to get stream immediately to trigger browser prompt
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(t => t.stop()); // Release immediately
+      } catch (e) {
+          // If failed, show UI prompt then try again
+          const confirmed = await requestPermissionUI('audio');
+          if (!confirmed) return false;
+          try {
+             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+             stream.getTracks().forEach(t => t.stop());
+          } catch(e2) {
+             setError("Microphone permission denied.");
+             return false;
+          }
+      }
+
+      // 2. Camera (Asked upfront to ensure seamless vision toggle later)
+      // Note: If you prefer asking only when toggling vision, remove this block.
+      // Keeping it here satisfies "ask all permission" request.
+      try {
+          // Check if we already have permission without prompting (if persisted)
+          // We can't really check "query" reliably across all browsers/webviews, so we try getUserMedia
+          // If it fails or prompts, we want our UI first.
+          
+          // Strategy: Show our UI first for camera if not granted before
+          if (!localStorage.getItem('ROXY_CAM_GRANTED')) {
+             const confirmed = await requestPermissionUI('video');
+             if (confirmed) {
+                 try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(t => t.stop());
+                    localStorage.setItem('ROXY_CAM_GRANTED', 'true');
+                 } catch (e) {
+                    // Ignore, maybe user cancelled browser prompt
+                 }
+             }
+          }
+      } catch (e) {
+          // Ignore
+      }
+
+      // 3. Overlay (Simulation for "Display over other apps")
+      if (!localStorage.getItem('ROXY_OVERLAY_GRANTED')) {
+          const confirmed = await requestPermissionUI('overlay');
+          if (confirmed) {
+              localStorage.setItem('ROXY_OVERLAY_GRANTED', 'true');
+          }
+      }
+
+      return true;
   };
   
   // New Soft Chime Sound
@@ -157,19 +203,16 @@ export const useLiveRoxy = () => {
     const ctx = outputContextRef.current;
     const now = ctx.currentTime;
 
-    // Soft Sine Wave (Gentle Chime)
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     
     osc.type = 'sine';
-    // Pentatonic friendly note (C5 -> E5 fade)
     osc.frequency.setValueAtTime(523.25, now); // C5
     osc.frequency.exponentialRampToValueAtTime(523.25, now + 0.1);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
     
-    // Slow attack, soft release
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
@@ -181,11 +224,13 @@ export const useLiveRoxy = () => {
   const connect = useCallback(async () => {
     try {
       if (!apiKey) {
-        throw new Error("API Key missing. Please configure it in settings.");
+        setError("API Key missing. Please configure it in settings.");
+        return;
       }
 
-      const allowed = await checkPermission('audio');
-      if (!allowed) return;
+      // Perform the robust permission sequence
+      const permissionsGranted = await checkAndRequestPermissions();
+      if (!permissionsGranted) return;
 
       setError(null);
       setState(RoxyState.IDLE);
@@ -237,7 +282,6 @@ export const useLiveRoxy = () => {
         },
         onerror: (err: any) => {
           console.error("ROXY Error", err);
-          // Don't disconnect immediately on minor errors, but notify
           if (err.message?.includes('401') || err.message?.includes('key')) {
              setError("Invalid API Key. Please update in settings.");
              disconnect();
@@ -294,9 +338,10 @@ export const useLiveRoxy = () => {
     if (isCameraActive) {
       stopVideoInput();
     } else {
-      const allowed = await checkPermission('video');
-      if (allowed) {
-        await startVideoInput();
+      try {
+         await startVideoInput();
+      } catch (e) {
+         setError("Camera unavailable");
       }
     }
   }, [isCameraActive, videoResolution]);
@@ -408,17 +453,17 @@ export const useLiveRoxy = () => {
               else if (target.includes('gmail')) window.open('https://mail.google.com', '_blank');
               logText = `Opening ${target}`;
            } 
-           // --- NEW EXPANDED COMMANDS ---
+           // --- EXPANDED COMMANDS ---
            else if (action === 'OPEN_APP_SCREEN') {
-               logText = `Navigating to ${target}`; // Simulation
-               // In a real android intent bridge: window.Android.openDeepLink(target);
+               logText = `Opening ${target}...`; 
                if (target.includes('reels')) window.open('https://www.instagram.com/reels/', '_blank');
+               else if (target.includes('shorts')) window.open('https://www.youtube.com/shorts/', '_blank');
            }
            else if (action === 'TOGGLE_BLUETOOTH') {
-               logText = `Bluetooth turned ${target}`; // Simulation
+               logText = `Turning Bluetooth ${target}...`; 
            }
            else if (action === 'SET_BRIGHTNESS') {
-               logText = `Brightness set to ${target}`; // Simulation
+               logText = `Setting Brightness to ${target}...`; 
            }
            else {
               logText = `System: ${action} ${target || ''}`;
