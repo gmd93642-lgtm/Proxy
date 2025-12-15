@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RoxyState, MemoryLog, PermissionRequest } from '../types';
 import { FaMicrophone, FaMicrophoneSlash, FaPowerOff, FaCamera, FaChevronDown, FaCog, FaKey } from 'react-icons/fa';
-import { FiSun, FiMoon, FiBattery, FiWifi, FiMaximize, FiMinimize } from 'react-icons/fi';
+import { FiSun, FiMoon, FiBattery, FiWifi, FiMaximize, FiMinimize, FiLayers } from 'react-icons/fi';
 import { BiSad, BiHappy } from 'react-icons/bi';
 import { TbFaceId } from "react-icons/tb";
 import Orb from './Orb';
@@ -25,7 +25,53 @@ interface HUDProps {
   hasApiKey?: boolean;
 }
 
-// Confirmation Dialog Component
+// --- PERMISSION MODAL DETAILS ---
+const getPermissionDetails = (type: 'audio' | 'video' | 'overlay') => {
+  switch (type) {
+    case 'audio':
+      return {
+        icon: <FaMicrophone className="w-8 h-8" />,
+        title: "Microphone Access",
+        description: "ROXY uses advanced voice AI. To hear your commands and converse naturally, microphone access is essential.",
+        sub: "Required • Voice Control",
+        color: "text-primary-400",
+        bg: "bg-primary-500/20",
+        border: "border-primary-500/30"
+      };
+    case 'video':
+      return {
+        icon: <FaCamera className="w-8 h-8" />,
+        title: "Camera Access",
+        description: "Enable vision capabilities so ROXY can see the world with you. This allows for object recognition and face scanning.",
+        sub: "Optional • Vision & AI Sight",
+        color: "text-accent-400",
+        bg: "bg-accent-500/20",
+        border: "border-accent-500/30"
+      };
+    case 'overlay':
+      return {
+        icon: <FiLayers className="w-8 h-8" />,
+        title: "Display Overlay",
+        description: "Allows ROXY to display widgets, visual responses, and controls on top of other applications for a seamless OS experience.",
+        sub: "System • Multitasking",
+        color: "text-emerald-400",
+        bg: "bg-emerald-500/20",
+        border: "border-emerald-500/30"
+      };
+    default:
+      return {
+        icon: <FaCog className="w-8 h-8" />,
+        title: "Permission Request",
+        description: "System access is required.",
+        sub: "System",
+        color: "text-slate-400",
+        bg: "bg-slate-500/20",
+        border: "border-slate-500/30"
+      };
+  }
+};
+
+// --- CONFIRMATION DIALOG ---
 const ConfirmDialog = ({ 
     isOpen, 
     title, 
@@ -37,8 +83,8 @@ const ConfirmDialog = ({
 }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="glass-card p-6 w-80 shadow-2xl transform scale-100 transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+            <div className="glass-card p-6 w-full max-w-sm shadow-2xl transform scale-100 transition-all border border-white/10">
                 <h3 className="text-lg font-sans font-semibold text-white mb-2">{title}</h3>
                 <p className="text-slate-400 text-sm mb-6 leading-relaxed">{message}</p>
                 <div className="flex gap-3">
@@ -50,7 +96,7 @@ const ConfirmDialog = ({
     );
 };
 
-// Key Input Dialog
+// --- KEY INPUT DIALOG ---
 const KeyDialog = ({
     isOpen,
     onClose,
@@ -63,14 +109,16 @@ const KeyDialog = ({
     if (!isOpen) return null;
     
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in">
-             <div className="glass-card p-6 w-[90%] max-w-sm shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
+             <div className="glass-card p-6 w-full max-w-sm shadow-2xl border border-white/10">
                  <div className="flex items-center gap-3 mb-4 text-white">
-                     <FaKey className="text-primary-400" />
+                     <div className="p-3 rounded-full bg-primary-500/20 text-primary-400">
+                        <FaKey />
+                     </div>
                      <h3 className="text-lg font-sans font-semibold">API Configuration</h3>
                  </div>
                  <p className="text-slate-400 text-sm mb-4">
-                     Please enter your Gemini API Key to activate ROXY OS system functions.
+                     Enter your Gemini API Key to activate ROXY OS.
                  </p>
                  <input 
                     type="password" 
@@ -81,14 +129,14 @@ const KeyDialog = ({
                  />
                  <div className="flex gap-3">
                      <button onClick={onClose} className="py-3 px-4 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 text-sm font-medium">Cancel</button>
-                     <button onClick={() => { onSave(key); onClose(); }} className="flex-1 py-3 rounded-xl bg-primary-500 text-white hover:bg-primary-400 transition-colors text-sm font-medium">Save Access Key</button>
+                     <button onClick={() => { onSave(key); onClose(); }} className="flex-1 py-3 rounded-xl bg-primary-500 text-white hover:bg-primary-400 transition-colors text-sm font-medium shadow-lg shadow-primary-500/20">Save Access Key</button>
                  </div>
              </div>
         </div>
     );
 };
 
-// Simple Widget Component
+// --- WIDGET ---
 const Widget = ({ icon: Icon, label, value, subLabel }: { icon: any, label: string, value: string, subLabel?: string }) => (
     <div className="glass p-4 rounded-2xl flex items-center gap-4 transition-transform hover:scale-[1.02]">
         <div className="p-3 rounded-full bg-white/5 text-primary-400">
@@ -134,7 +182,6 @@ export const HUD: React.FC<HUDProps> = ({
   }, []);
 
   useEffect(() => {
-    // If there is an API Key error, show the modal
     if (error && (error.includes('API Key') || error.includes('missing'))) {
         setShowKeyModal(true);
     }
@@ -146,7 +193,6 @@ export const HUD: React.FC<HUDProps> = ({
     }
   }, [videoStream]);
 
-  // Handlers for confirmation
   const handleDisconnectRequest = () => setConfirmAction('disconnect');
   const handleCameraRequest = () => {
       if (isCameraActive) {
@@ -181,7 +227,6 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
         
         <div className="flex gap-4">
-             {/* Zen Mode Toggle */}
              <button 
                 onClick={() => setZenMode(!zenMode)}
                 className="glass p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
@@ -189,7 +234,6 @@ export const HUD: React.FC<HUDProps> = ({
                 <FiMaximize />
              </button>
 
-             {/* Settings / API Key */}
              <button 
                 onClick={() => setShowKeyModal(true)}
                 className="glass p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
@@ -202,12 +246,10 @@ export const HUD: React.FC<HUDProps> = ({
       {/* --- CENTER: ORB & CONTENT --- */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
         
-        {/* The Core Orb */}
         <div className="pointer-events-auto cursor-pointer mb-8" onClick={state === RoxyState.DISCONNECTED ? onConnect : onToggleMic}>
              <Orb state={state} inputVolume={visuals.inputVolume} />
         </div>
 
-        {/* Dynamic Response Text */}
         {!zenMode && latestLog && (
             <div className="max-w-md w-[90%] text-center animate-slide-up">
                 <p className="text-lg md:text-xl font-sans text-slate-100 font-medium leading-relaxed drop-shadow-lg">
@@ -216,7 +258,6 @@ export const HUD: React.FC<HUDProps> = ({
             </div>
         )}
 
-        {/* System Action Toast */}
         {activeSystemAction && (
             <div className="absolute top-1/3 animate-fade-in glass px-6 py-3 rounded-full flex items-center gap-3 shadow-lg">
                  <div className="w-2 h-2 rounded-full bg-primary-400 animate-pulse"></div>
@@ -231,12 +272,11 @@ export const HUD: React.FC<HUDProps> = ({
           <Widget icon={BiHappy} label="Mood" value="Productive" subLabel="3 tasks remaining" />
       </div>
 
-      {/* --- CAMERA FEED (Face Scan) --- */}
+      {/* --- CAMERA FEED --- */}
       <div className={`absolute top-24 right-6 transition-all duration-500 ${isCameraActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 pointer-events-none'}`}>
           <div className="relative w-48 aspect-[3/4] rounded-2xl overflow-hidden glass shadow-2xl">
               {videoStream && <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
               
-              {/* Soft Face Scan Animation */}
               <div className="absolute inset-0 border-[3px] border-primary-400/30 rounded-2xl"></div>
               <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-primary-500/20 to-transparent animate-scan"></div>
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 glass px-3 py-1 rounded-full">
@@ -258,7 +298,6 @@ export const HUD: React.FC<HUDProps> = ({
              </button>
          ) : (
              <div className="glass px-6 py-3 rounded-full flex items-center gap-6 shadow-2xl">
-                 {/* Mic */}
                  <button 
                     onClick={onToggleMic} 
                     className={`p-4 rounded-full transition-all ${isMicMuted ? 'bg-red-500/10 text-red-400' : 'bg-white/10 text-white hover:bg-white/20'}`}
@@ -266,7 +305,6 @@ export const HUD: React.FC<HUDProps> = ({
                     {isMicMuted ? <FaMicrophoneSlash size={20} /> : <FaMicrophone size={20} />}
                  </button>
 
-                 {/* Camera */}
                  <button 
                     onClick={handleCameraRequest}
                     className={`p-4 rounded-full transition-all ${isCameraActive ? 'bg-primary-500 text-white shadow-lg' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
@@ -276,7 +314,6 @@ export const HUD: React.FC<HUDProps> = ({
 
                  <div className="w-[1px] h-8 bg-white/10"></div>
 
-                 {/* Disconnect */}
                  <button 
                     onClick={handleDisconnectRequest} 
                     className="p-4 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
@@ -287,7 +324,6 @@ export const HUD: React.FC<HUDProps> = ({
          )}
       </div>
 
-      {/* Zen Mode Exit (Only visible in Zen) */}
       {zenMode && (
          <button 
             onClick={() => setZenMode(false)}
@@ -324,31 +360,65 @@ export const HUD: React.FC<HUDProps> = ({
          onCancel={() => setConfirmAction(null)}
       />
 
-      {/* Error Toast */}
       {error && !showKeyModal && (
           <div className="absolute top-24 left-1/2 -translate-x-1/2 glass px-6 py-3 rounded-xl border border-red-500/20 text-red-300 flex items-center gap-3 animate-slide-up shadow-xl cursor-pointer" onClick={() => setShowKeyModal(true)}>
               <span className="text-sm font-medium">{error}</span>
           </div>
       )}
       
-      {/* --- PERMISSION MODAL --- */}
-      {permissionRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in">
-            <div className="glass-card p-8 w-80 text-center">
-                <div className="w-16 h-16 rounded-full bg-primary-500/20 text-primary-400 flex items-center justify-center mx-auto mb-6">
-                    {permissionRequest.type === 'audio' ? <FaMicrophone size={24} /> : <FaCamera size={24} />}
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Enable {permissionRequest.type === 'audio' ? 'Microphone' : 'Camera'}</h3>
-                <p className="text-slate-400 text-sm mb-8">
-                    ROXY needs access to your {permissionRequest.type} to {permissionRequest.type === 'audio' ? 'hear your commands' : 'see the world'}.
-                </p>
-                <div className="flex flex-col gap-3">
-                    <button onClick={permissionRequest.onConfirm} className="w-full py-3 rounded-xl bg-primary-500 text-white font-medium hover:bg-primary-400 transition-colors">Allow Access</button>
-                    <button onClick={permissionRequest.onCancel} className="w-full py-3 rounded-xl hover:bg-white/5 text-slate-400 text-sm transition-colors">Not Now</button>
+      {/* --- NEW PERMISSION MODAL --- */}
+      {permissionRequest && (() => {
+         const details = getPermissionDetails(permissionRequest.type);
+         return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-lg animate-fade-in p-6">
+                <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+                    
+                    {/* Background Decor */}
+                    <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${permissionRequest.type === 'audio' ? 'from-primary-500 to-accent-500' : permissionRequest.type === 'video' ? 'from-accent-500 to-pink-500' : 'from-emerald-400 to-emerald-600'}`}></div>
+                    <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div className="p-8 flex flex-col items-center text-center relative z-10">
+                        
+                        {/* Icon Ring */}
+                        <div className={`w-20 h-20 rounded-full ${details.bg} ${details.color} flex items-center justify-center mb-6 shadow-inner ring-1 ring-white/10`}>
+                            {details.icon}
+                        </div>
+
+                        <h3 className="text-2xl font-sans font-semibold text-white mb-2 tracking-tight">
+                            {details.title}
+                        </h3>
+                        
+                        <span className="text-xs font-medium uppercase tracking-widest text-slate-500 mb-6 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700/50">
+                            {details.sub}
+                        </span>
+
+                        <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-[85%]">
+                            {details.description}
+                        </p>
+
+                        <div className="w-full flex flex-col gap-3">
+                            <button 
+                                onClick={permissionRequest.onConfirm} 
+                                className="w-full py-4 rounded-xl bg-gradient-to-r from-slate-800 to-slate-700 hover:from-primary-600 hover:to-primary-500 text-white font-medium transition-all duration-300 shadow-lg border border-slate-700 hover:border-primary-400 group relative overflow-hidden"
+                            >
+                                <span className="relative z-10">
+                                    {permissionRequest.type === 'overlay' ? 'Grant Permission' : 'Allow Access'}
+                                </span>
+                                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            </button>
+                            
+                            <button 
+                                onClick={permissionRequest.onCancel} 
+                                className="text-slate-500 text-sm hover:text-slate-300 transition-colors py-2"
+                            >
+                                Maybe Later
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-      )}
+         );
+      })()}
 
       <style>{`
         @keyframes scan {
